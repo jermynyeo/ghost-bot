@@ -159,7 +159,7 @@ def main(api_token):
 
 def read_bot_api_token():
     try:
-        with open('BOT_API_TOKEN', 'r') as f:
+        with open('api.token', 'r') as f:
             return f.readline()[:-1]
 
     except (OSError, IOError) as e:
