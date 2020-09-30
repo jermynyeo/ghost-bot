@@ -4,19 +4,24 @@ from telegram import (ReplyKeyboardMarkup, ReplyKeyboardRemove)
 from telegram.ext import (Updater, CommandHandler, MessageHandler, Filters,
                           ConversationHandler)
 
-logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - \
-                    %(message)s',level=logging.INFO)
+logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %('
+                           'message)s', level=logging.INFO)
+
 logger = logging.getLogger(__name__)
+
 
 def get_game_room(update):
     return update.message.chat.id
 
+
 def get_username(update):
     return update.message.from_user.username
 
+
 def start(update, context):
-    update.message.reply_text('Welcome to the Ghost game bot!\n' 
+    update.message.reply_text('Welcome to the Ghost game bot!\n'
                               + '/rules to read game rules\n')
+
 
 def rules(update, context):
     update.message.reply_text(
@@ -32,8 +37,9 @@ def rules(update, context):
         + 'Voting Round, everyone picks someone to eliminate.\n'
         + 'If a Ghost is eliminated, they can make a guess.\n')
 
+
 def create(update, context):
-    host = get_username(update) 
+    host = get_username(update)
     game_room = get_game_room(update)
 
     update.message.reply_text(
@@ -41,10 +47,12 @@ def create(update, context):
         + 'Host (@%s): PM me with /params\n' % host
         + 'Players... wait and get ready\n')
 
+
 SET_PARAMS_TOWN, SET_PARAMS_FOOL, SET_PARAMS_CONFIRM = range(3)
 
+
 def set_params_start(update, context):
-    host = get_username(update) 
+    host = get_username(update)
     game_room = get_game_room(update)
 
     update.message.reply_text(
@@ -54,8 +62,9 @@ def set_params_start(update, context):
     update.message.reply_text('Tell me the town word.\n')
     return SET_PARAMS_TOWN
 
+
 def set_params_town(update, context):
-    host = get_username(update) 
+    host = get_username(update)
     game_room = get_game_room(update)
 
     town_word = update.message.text
@@ -65,8 +74,9 @@ def set_params_town(update, context):
 
     return SET_PARAMS_FOOL
 
+
 def set_params_fool(update, context):
-    host = get_username(update) 
+    host = get_username(update)
     game_room = get_game_room(update)
 
     fool_word = update.message.text
@@ -75,13 +85,14 @@ def set_params_fool(update, context):
     update.message.reply_text(
         'Parameters selected: \n'
         + 'Confirm?\n',
-        reply_markup = ReplyKeyboardMarkup(
-            [['yes', 'no']], one_time_keyboard = True))
+        reply_markup=ReplyKeyboardMarkup(
+            [['yes', 'no']], one_time_keyboard=True))
 
-    return SET_PARAMS_CONFIRM 
+    return SET_PARAMS_CONFIRM
+
 
 def set_params_confirm(update, context):
-    host = get_username(update) 
+    host = get_username(update)
     game_room = get_game_room(update)
 
     update.message.reply_text(
@@ -90,6 +101,7 @@ def set_params_confirm(update, context):
 
     return ConversationHandler.END
 
+
 def set_params_cancel(update, context):
     update.message.reply_text(
         'Cancelling game.\n'
@@ -97,20 +109,22 @@ def set_params_cancel(update, context):
 
     return ConversationHandler.END
 
+
 def register_players_start(update, context):
     update.message.reply_text(
         "Use /join to play")
 
     return ConversationHandler.END
 
+
 def register_players_join(update, context):
     user = update.message.from_user
 
     update.message.reply_text('Registered player: %s' % user)
 
-#def set_game_params(update, context):
-def main(BOT_API_TOKEN):
-    updater = Updater(BOT_API_TOKEN, use_context=True)
+
+def main(api_token):
+    updater = Updater(api_token, use_context=True)
     dp = updater.dispatcher
 
     # setup
@@ -120,10 +134,9 @@ def main(BOT_API_TOKEN):
     # start game
     dp.add_handler(CommandHandler('create', create, Filters.group))
     set_params_handler = ConversationHandler(
-        entry_points = [CommandHandler('params', set_params_start,
-                                       Filters.private)],
-
-        states = {
+        entry_points=[CommandHandler('params', set_params_start,
+                                     Filters.private)],
+        states={
             SET_PARAMS_TOWN: [MessageHandler(Filters.text & ~Filters.command,
                                              set_params_town)],
             SET_PARAMS_FOOL: [MessageHandler(Filters.text & ~Filters.command,
@@ -134,15 +147,15 @@ def main(BOT_API_TOKEN):
                                                 set_params_start)]
         },
 
-        fallbacks = [CommandHandler('cancel', set_params_cancel, Filters.private),
-                     CommandHandler('restart', set_params_start, Filters.private)]
+        fallbacks=[CommandHandler('cancel', set_params_cancel, Filters.private),
+                   CommandHandler('restart', set_params_start,
+                                  Filters.private)]
     )
     dp.add_handler(set_params_handler)
 
     updater.start_polling()
     updater.idle()
 
-BOT_API_TOKEN = ''
 
 def read_bot_api_token():
     try:
@@ -153,6 +166,7 @@ def read_bot_api_token():
         print('Unable to read Bot API Token. Put token inside a folder named'
               + '"BOT_API_TOKEN" to begin.')
 
+
 if __name__ == '__main__':
-    BOT_API_TOKEN = read_bot_api_token()
-    main(BOT_API_TOKEN)
+    api_token = read_bot_api_token()
+    main(api_token)
