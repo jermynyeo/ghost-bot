@@ -5,4 +5,4 @@ telegram bot based on ghost engine
 
 Place API token from BotFather inside `api.token`
 
-Still in development ya
+Still in development.
