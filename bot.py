@@ -11,41 +11,29 @@ logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %('
 logger = logging.getLogger(__name__)
 
 
-def get_game_room(update):
-    return update.message.chat.id
-
-
-def get_username(update):
-    return update.message.from_user.username
-
-
 def start(update, context):
     update.message.reply_text('Welcome to the Ghost game bot!\n'
                               + '/rules to read game rules\n')
 
 
 def rules(update, context):
-    userId = update.message.from_user['id']
-    message = 'Townies are Fools are playing against the eponymous Ghosts.\nTownies will get Town Word, Fools will get Fool Word.\nGhosts do not get a word.\n\n\n<b>Objective</b>\nTownies and Fools: eliminate ALL Ghosts.\nGhosts: guess the Town Word or gain the majority.\n\n\n<b>Gameplay</b> \nWord Round: everyone giving a (subtle) clue about their word.\nGhosts have to blend in with everyone else.\nVoting Round, everyone picks someone to eliminate.\nIf a Ghost is eliminated, they can make a guess.\n'
+    userId = update.message.from_user.id
+    message = '<b>RULES</b>\n\nTownies are Fools are playing against the eponymous Ghosts.\nTownies will get Town Word, Fools will get Fool Word.\nGhosts do not get a word.\n\n\n<b>Objective</b>\nTownies and Fools: eliminate ALL Ghosts.\nGhosts: guess the Town Word or gain the majority.\n\n\n<b>Gameplay</b> \nWord Round: everyone giving a (subtle) clue about their word.\nGhosts have to blend in with everyone else.\nVoting Round, everyone picks someone to eliminate.\nIf a Ghost is eliminated, they can make a guess.\n'
     r  = requests.get('https://api.telegram.org/bot' + api_token + '/sendMessage?chat_id=' + str(userId) + '&text=' + message + '&parse_mode=html')
 
 def create(update, context):
-    host = get_username(update)
-    game_room = get_game_room(update)
-
     update.message.reply_text(
         'Creating new game of ghost!\n'
-        + 'Host (@%s): PM me with /params\n' % host
-        + 'Players... wait and get ready\n')
+        + 'Host (@%s): PM me with /params\n' % update.message.from_user.username 
+        + '\nPlayers... wait and get ready\n')
+    message = 'Hello, \n\nPlease type /params to initialize the game.'
+    requests.get('https://api.telegram.org/bot' + api_token + '/sendMessage?chat_id=' + str(update.message.from_user.id) + '&text=' + message + '&parse_mode=html')
 
 
 SET_PARAMS_TOWN, SET_PARAMS_FOOL, SET_PARAMS_CONFIRM = range(3)
 
-
 def set_params_start(update, context):
-    host = get_username(update)
-    game_room = get_game_room(update)
-
+    print (update.message)
     update.message.reply_text(
         'Setting game parameters!\n'
         + '/restart or /cancel if you want to.\n')
@@ -55,8 +43,6 @@ def set_params_start(update, context):
 
 
 def set_params_town(update, context):
-    host = get_username(update)
-    game_room = get_game_room(update)
 
     town_word = update.message.text
 
@@ -67,8 +53,6 @@ def set_params_town(update, context):
 
 
 def set_params_fool(update, context):
-    host = get_username(update)
-    game_room = get_game_room(update)
 
     fool_word = update.message.text
     update.message.reply_text('Set the fool word: %s\n' % fool_word)
@@ -83,9 +67,6 @@ def set_params_fool(update, context):
 
 
 def set_params_confirm(update, context):
-    host = get_username(update)
-    game_room = get_game_room(update)
-
     update.message.reply_text(
         "Game is ready!\n"
         + "Waiting for players to register...\n")
@@ -114,7 +95,7 @@ def register_players_join(update, context):
     update.message.reply_text('Registered player: %s' % user)
 
 
-def main(api_token):
+def main():
     # print (type(api_token))
     updater = Updater(api_token, use_context=True)
     dp = updater.dispatcher
@@ -126,8 +107,7 @@ def main(api_token):
     # start game
     dp.add_handler(CommandHandler('create', create, Filters.group))
     set_params_handler = ConversationHandler(
-        entry_points=[CommandHandler('params', set_params_start,
-                                     Filters.private)],
+        entry_points=[CommandHandler('params', set_params_start, Filters.private)],
         states={
             SET_PARAMS_TOWN: [MessageHandler(Filters.text & ~Filters.command,
                                              set_params_town)],
@@ -161,5 +141,5 @@ def read_bot_api_token():
 
 if __name__ == '__main__':
     api_token = read_bot_api_token()
-    main(api_token)
+    main()
 
