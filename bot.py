@@ -1,4 +1,5 @@
 import logging
+import requests 
 
 from telegram import (ReplyKeyboardMarkup, ReplyKeyboardRemove)
 from telegram.ext import (Updater, CommandHandler, MessageHandler, Filters,
@@ -24,19 +25,9 @@ def start(update, context):
 
 
 def rules(update, context):
-    update.message.reply_text(
-        'Townies are Fools are playing against the eponymous Ghosts.\n'
-        + 'Townies will get Town Word, Fools will get Fool Word.\n'
-        + 'Ghosts do not get a word.\n'
-        + '\n\n **Objective**\n'
-        + 'Townies and Fools: eliminate ALL Ghosts.\n'
-        + 'Ghosts: guess the Town Word or gain the majority.\n'
-        + '\n\n **Gameplay** \n'
-        + 'Word Round: everyone giving a (subtle) clue about their word.\n'
-        + 'Ghosts have to blend in with everyone else.\n'
-        + 'Voting Round, everyone picks someone to eliminate.\n'
-        + 'If a Ghost is eliminated, they can make a guess.\n')
-
+    userId = update.message.from_user['id']
+    message = 'Townies are Fools are playing against the eponymous Ghosts.\nTownies will get Town Word, Fools will get Fool Word.\nGhosts do not get a word.\n\n\n<b>Objective</b>\nTownies and Fools: eliminate ALL Ghosts.\nGhosts: guess the Town Word or gain the majority.\n\n\n<b>Gameplay</b> \nWord Round: everyone giving a (subtle) clue about their word.\nGhosts have to blend in with everyone else.\nVoting Round, everyone picks someone to eliminate.\nIf a Ghost is eliminated, they can make a guess.\n'
+    r  = requests.get('https://api.telegram.org/bot' + api_token + '/sendMessage?chat_id=' + str(userId) + '&text=' + message + '&parse_mode=html')
 
 def create(update, context):
     host = get_username(update)
@@ -124,6 +115,7 @@ def register_players_join(update, context):
 
 
 def main(api_token):
+    # print (type(api_token))
     updater = Updater(api_token, use_context=True)
     dp = updater.dispatcher
 
@@ -160,7 +152,7 @@ def main(api_token):
 def read_bot_api_token():
     try:
         with open('api.token', 'r') as f:
-            return f.readline()[:-1]
+            return f.readline()
 
     except (OSError, IOError) as e:
         print('Unable to read Bot API Token. Put token inside a folder named'
@@ -170,3 +162,4 @@ def read_bot_api_token():
 if __name__ == '__main__':
     api_token = read_bot_api_token()
     main(api_token)
+
