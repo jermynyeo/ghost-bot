@@ -152,7 +152,7 @@ def main(api_token):
 def read_bot_api_token():
     try:
         with open('api.token', 'r') as f:
-            return f.readline()
+            return f.readline().strip()
     except (OSError, IOError) as e:
         print('Unable to read Bot API Token. Put token inside a folder named'
               + '"BOT_API_TOKEN" to begin.')
