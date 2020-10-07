@@ -26,7 +26,7 @@ def start(update, context):
 
 def rules(update, context):
     userId = update.message.from_user['id']
-    message = 'Townies are Fools are playing against the eponymous Ghosts.\nTownies will get Town Word, Fools will get Fool Word.\nGhosts do not get a word.\n\n\n<b>Objective</b>\nTownies and Fools: eliminate ALL Ghosts.\nGhosts: guess the Town Word or gain the majority.\n\n\n<b>Gameplay</b> \nWord Round: everyone giving a (subtle) clue about their word.\nGhosts have to blend in with everyone else.\nVoting Round, everyone picks someone to eliminate.\nIf a Ghost is eliminated, they can make a guess.\n'
+    message = '<b>RULES</b>\n\nTownies are Fools are playing against the eponymous Ghosts.\nTownies will get Town Word, Fools will get Fool Word.\nGhosts do not get a word.\n\n\n<b>Objective</b>\nTownies and Fools: eliminate ALL Ghosts.\nGhosts: guess the Town Word or gain the majority.\n\n\n<b>Gameplay</b> \nWord Round: everyone giving a (subtle) clue about their word.\nGhosts have to blend in with everyone else.\nVoting Round, everyone picks someone to eliminate.\nIf a Ghost is eliminated, they can make a guess.\n'
     r  = requests.get('https://api.telegram.org/bot' + api_token + '/sendMessage?chat_id=' + str(userId) + '&text=' + message + '&parse_mode=html')
 
 def create(update, context):
@@ -153,7 +153,6 @@ def read_bot_api_token():
     try:
         with open('api.token', 'r') as f:
             return f.readline()
-
     except (OSError, IOError) as e:
         print('Unable to read Bot API Token. Put token inside a folder named'
               + '"BOT_API_TOKEN" to begin.')
