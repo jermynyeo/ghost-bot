@@ -1,9 +1,11 @@
 import logging
-import requests 
 
+import telegram
 from telegram import (ReplyKeyboardMarkup, ReplyKeyboardRemove)
 from telegram.ext import (Updater, CommandHandler, MessageHandler, Filters,
                           ConversationHandler)
+
+from ghost_word_game import GhostEngine
 
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %('
                            'message)s', level=logging.INFO)
@@ -11,12 +13,16 @@ logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %('
 logger = logging.getLogger(__name__)
 
 
-def get_game_room(update):
+def get_game_id(update):
     return update.message.chat.id
 
 
 def get_username(update):
     return update.message.from_user.username
+
+
+def get_user_id(update):
+    return update.message.from_user.id
 
 
 def start(update, context):
@@ -25,18 +31,22 @@ def start(update, context):
 
 
 def rules(update, context):
-    userId = update.message.from_user['id']
-    message = '<b>RULES</b>\n\nTownies are Fools are playing against the eponymous Ghosts.\nTownies will get Town Word, Fools will get Fool Word.\nGhosts do not get a word.\n\n\n<b>Objective</b>\nTownies and Fools: eliminate ALL Ghosts.\nGhosts: guess the Town Word or gain the majority.\n\n\n<b>Gameplay</b> \nWord Round: everyone giving a (subtle) clue about their word.\nGhosts have to blend in with everyone else.\nVoting Round, everyone picks someone to eliminate.\nIf a Ghost is eliminated, they can make a guess.\n'
-    r  = requests.get('https://api.telegram.org/bot' + api_token + '/sendMessage?chat_id=' + str(userId) + '&text=' + message + '&parse_mode=html')
+    user_id = get_user_id(update)
+    rule_message = '<b>RULES</b>\n\nTownies are Fools are playing against the eponymous Ghosts.\nTownies will get Town Word, Fools will get Fool Word.\nGhosts do not get a word.\n\n\n<b>Objective</b>\nTownies and Fools: eliminate ALL Ghosts.\nGhosts: guess the Town Word or gain the majority.\n\n\n<b>Gameplay</b> \nWord Round: everyone giving a (subtle) clue about their word.\nGhosts have to blend in with everyone else.\nVoting Round, everyone picks someone to eliminate.\nIf a Ghost is eliminated, they can make a guess.\n'
+    bot.send_message(chat_id=user_id, text=rule_message)
+
 
 def create(update, context):
     host = get_username(update)
-    game_room = get_game_room(update)
+    host_id = get_user_id(update)
+    game_id = get_game_id(update)
 
     update.message.reply_text(
         'Creating new game of ghost!\n'
-        + 'Host (@%s): PM me with /params\n' % host
+        + 'Host (@%s): PM me to set the secret words\n' % host
         + 'Players... wait and get ready\n')
+
+    bot.send_message(chat_id=host_id, text='Use /params to begin')
 
 
 SET_PARAMS_TOWN, SET_PARAMS_FOOL, SET_PARAMS_CONFIRM = range(3)
@@ -44,10 +54,10 @@ SET_PARAMS_TOWN, SET_PARAMS_FOOL, SET_PARAMS_CONFIRM = range(3)
 
 def set_params_start(update, context):
     host = get_username(update)
-    game_room = get_game_room(update)
+    game_room = get_game_id(update)
 
     update.message.reply_text(
-        'Setting game parameters!\n'
+        'Setting game parameters...\n'
         + '/restart or /cancel if you want to.\n')
 
     update.message.reply_text('Tell me the town word.\n')
@@ -56,7 +66,7 @@ def set_params_start(update, context):
 
 def set_params_town(update, context):
     host = get_username(update)
-    game_room = get_game_room(update)
+    game_room = get_game_id(update)
 
     town_word = update.message.text
 
@@ -68,7 +78,7 @@ def set_params_town(update, context):
 
 def set_params_fool(update, context):
     host = get_username(update)
-    game_room = get_game_room(update)
+    game_room = get_game_id(update)
 
     fool_word = update.message.text
     update.message.reply_text('Set the fool word: %s\n' % fool_word)
@@ -84,7 +94,7 @@ def set_params_fool(update, context):
 
 def set_params_confirm(update, context):
     host = get_username(update)
-    game_room = get_game_room(update)
+    game_room = get_game_id(update)
 
     update.message.reply_text(
         "Game is ready!\n"
@@ -114,9 +124,7 @@ def register_players_join(update, context):
     update.message.reply_text('Registered player: %s' % user)
 
 
-def main(api_token):
-    # print (type(api_token))
-    updater = Updater(api_token, use_context=True)
+def main():
     dp = updater.dispatcher
 
     # setup
@@ -152,7 +160,7 @@ def main(api_token):
 def read_bot_api_token():
     try:
         with open('api.token', 'r') as f:
-            return f.readline()
+            return f.readline().strip()
     except (OSError, IOError) as e:
         print('Unable to read Bot API Token. Put token inside a folder named'
               + '"BOT_API_TOKEN" to begin.')
@@ -160,5 +168,8 @@ def read_bot_api_token():
 
 if __name__ == '__main__':
     api_token = read_bot_api_token()
-    main(api_token)
+    updater = Updater(api_token, use_context=True)
+    bot = telegram.Bot(token=api_token)
+    game_engine = GhostEngine()
+    main()
 
