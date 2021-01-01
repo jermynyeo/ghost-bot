@@ -20,6 +20,9 @@ def get_game_id(update):
 def get_username(update):
     return update.message.from_user.username
 
+def get_userId(update):
+    return update.message.from_user.id
+
 
 def get_user_id(update):
     return update.message.from_user.id
@@ -28,7 +31,6 @@ def get_user_id(update):
 def start(update, context):
     update.message.reply_text('Welcome to the Ghost game bot!\n'
                               + '/rules to read game rules\n')
-
 
 def rules(update, context):
     user_id = get_user_id(update)
@@ -54,19 +56,17 @@ SET_PARAMS_TOWN, SET_PARAMS_FOOL, SET_PARAMS_CONFIRM = range(3)
 
 def set_params_start(update, context):
     host = get_username(update)
-    game_room = get_game_id(update)
-
     update.message.reply_text(
         'Setting game parameters...\n'
-        + '/restart or /cancel if you want to.\n')
-
+    )
     update.message.reply_text('Tell me the town word.\n')
     return SET_PARAMS_TOWN
 
 
 def set_params_town(update, context):
     host = get_username(update)
-    game_room = get_game_id(update)
+    userId = get_userId(update)
+    game_room = get_game_room(update)
 
     town_word = update.message.text
 
