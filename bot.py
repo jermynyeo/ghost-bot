@@ -1,156 +1,148 @@
 import logging
 
 import telegram
-from telegram import (ReplyKeyboardMarkup, ReplyKeyboardRemove)
-from telegram.ext import (Updater, CommandHandler, MessageHandler, Filters,
-                          ConversationHandler)
+from telegram import (ReplyKeyboardMarkup, ReplyKeyboardRemove, InlineKeyboardButton, InlineKeyboardMarkup)
+from telegram.ext import (Updater, CommandHandler, MessageHandler, Filters, CallbackQueryHandler, ConversationHandler)
 
-from ghost_word_game import GhostEngine
+import ghost 
 
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %('
                            'message)s', level=logging.INFO)
 
 logger = logging.getLogger(__name__)
 
+PLAYER, FOOL_WORD, TOWN_WORD = range(3)
 
-def get_game_id(update):
+def get_gid(update):
     return update.message.chat.id
-
 
 def get_username(update):
     return update.message.from_user.username
 
-def get_userId(update):
-    return update.message.from_user.id
-
-
 def get_user_id(update):
     return update.message.from_user.id
+    
+def build_menu(buttons,
+               n_cols,
+               header_buttons=None,
+               footer_buttons=None):
+    menu = [buttons[i:i + n_cols] for i in range(0, len(buttons), n_cols)]
+    if header_buttons:
+        menu.insert(0, [header_buttons])
+    if footer_buttons:
+        menu.append([footer_buttons])
+    return menu
 
+def register_player (update, context):
+    query = update.callback_query
+    query.answer()
+    query.edit_message_text(text=f"Selected option: {query.data}")
+    username = (query.from_user.username)
+    gid = query.message.chat.id
+    ge.register_player(gid, username)
+    reply_markup = InlineKeyboardMarkup(build_menu([InlineKeyboardButton('Join', callback_data='join')], 1))
+    bot.send_message(chat_id = gid, text= "Click to join game", reply_markup=reply_markup)
+    return PLAYER
 
-def start(update, context):
-    update.message.reply_text('Welcome to the Ghost game bot!\n'
-                              + '/rules to read game rules\n')
-
+############################## Get the rules of the game ##############################
 def rules(update, context):
     user_id = get_user_id(update)
     rule_message = '<b>RULES</b>\n\nTownies are Fools are playing against the eponymous Ghosts.\nTownies will get Town Word, Fools will get Fool Word.\nGhosts do not get a word.\n\n\n<b>Objective</b>\nTownies and Fools: eliminate ALL Ghosts.\nGhosts: guess the Town Word or gain the majority.\n\n\n<b>Gameplay</b> \nWord Round: everyone giving a (subtle) clue about their word.\nGhosts have to blend in with everyone else.\nVoting Round, everyone picks someone to eliminate.\nIf a Ghost is eliminated, they can make a guess.\n'
-    bot.send_message(chat_id=user_id, text=rule_message)
+    bot.send_message(chat_id=user_id, text=rule_message, parse_mode='HTML')
 
-
+############################## Creates a new games ##############################
 def create(update, context):
     host = get_username(update)
+    # host_id = get_user_id(update)
+    gid = get_gid(update)
+
+    update.message.reply_text('Welcome to the Ghost game bot!\n'
+                            + '/rules to read game rules\n\n'
+                            + 'Creating new game of ghost!\n')
+                            # + 'Players type /join to join the game\n')
+                            
+    ge.add_game(gid, host)
+    reply_markup = InlineKeyboardMarkup(build_menu([InlineKeyboardButton('Join', callback_data='join')], 1))
+    bot.send_message(chat_id = gid, text= "Click to join game", reply_markup=reply_markup)
+
+############################## Register Player ##############################
+
+############################## Start the game, host will input the parameters ##############################
+def start(update, context):
     host_id = get_user_id(update)
-    game_id = get_game_id(update)
 
-    update.message.reply_text(
-        'Creating new game of ghost!\n'
-        + 'Host (@%s): PM me to set the secret words\n' % host
-        + 'Players... wait and get ready\n')
+    # if number of players > 3 and < 10, we can start. 
+    bot.send_message(chat_id=host_id, text='Tell me the town word.\n')
+    # stop registration. 
 
-    bot.send_message(chat_id=host_id, text='Use /params to begin')
-
-
-SET_PARAMS_TOWN, SET_PARAMS_FOOL, SET_PARAMS_CONFIRM = range(3)
-
-
-def set_params_start(update, context):
-    host = get_username(update)
-    update.message.reply_text(
-        'Setting game parameters...\n'
-    )
-    update.message.reply_text('Tell me the town word.\n')
-    return SET_PARAMS_TOWN
-
-
+    return TOWN_WORD
+    
+############################## Set town word ##############################
 def set_params_town(update, context):
     host = get_username(update)
-    userId = get_userId(update)
-    game_room = get_game_room(update)
+    userId = get_user_id(update)
+    gid = get_gid(update)
 
     town_word = update.message.text
 
-    update.message.reply_text('Set the town word: %s\n' % town_word)
+    update.message.reply_text('Town word: %s\n' % town_word)
     update.message.reply_text('Tell me the fool word.\n')
 
-    return SET_PARAMS_FOOL
+    return FOOL_WORD
 
-
+############################## Set fool word ##############################
 def set_params_fool(update, context):
     host = get_username(update)
-    game_room = get_game_id(update)
+    gid = get_gid(update)
 
     fool_word = update.message.text
-    update.message.reply_text('Set the fool word: %s\n' % fool_word)
-
-    update.message.reply_text(
-        'Parameters selected: \n'
-        + 'Confirm?\n',
-        reply_markup=ReplyKeyboardMarkup(
-            [['yes', 'no']], one_time_keyboard=True))
-
-    return SET_PARAMS_CONFIRM
-
-
-def set_params_confirm(update, context):
-    host = get_username(update)
-    game_room = get_game_id(update)
-
-    update.message.reply_text(
-        "Game is ready!\n"
-        + "Waiting for players to register...\n")
+    update.message.reply_text('Fool word: %s\n' % fool_word)
 
     return ConversationHandler.END
 
-
+############################## Cancel Game ##############################
 def set_params_cancel(update, context):
     update.message.reply_text(
         'Cancelling game.\n'
-        + 'Use /start in group to go again')
+        + 'Use /create in group to go again')
 
     return ConversationHandler.END
-
-
-def register_players_start(update, context):
-    update.message.reply_text(
-        "Use /join to play")
-
-    return ConversationHandler.END
-
-
-def register_players_join(update, context):
-    user = update.message.from_user
-
-    update.message.reply_text('Registered player: %s' % user)
-
 
 def main():
     dp = updater.dispatcher
 
     # setup
-    dp.add_handler(CommandHandler('start', start, Filters.private))
+    dp.add_handler(CommandHandler('create', create, Filters.group))
+    register_player_handler = ConversationHandler(
+        entry_points=[CommandHandler('create', create, Filters.group)],
+        states = {
+            PLAYER: [
+                CallbackQueryHandler(register_player)
+            ]
+        },
+        fallbacks=[MessageHandler(Filters.regex('^Done$'), set_params_cancel)],
+        name="new_player"
+    )
+    dp.add_handler(register_player_handler)
+        # dp.add_handler(CallbackQueryHandler(register_player))
+
+    #misc 
     dp.add_handler(CommandHandler('rules', rules))
 
-    # start game
-    dp.add_handler(CommandHandler('create', create, Filters.group))
     set_params_handler = ConversationHandler(
-        entry_points=[CommandHandler('params', set_params_start,
-                                     Filters.private)],
+        entry_points=[CommandHandler('start', start, Filters.private)],
         states={
-            SET_PARAMS_TOWN: [MessageHandler(Filters.text & ~Filters.command,
+            TOWN_WORD: [MessageHandler(Filters.text & ~Filters.command,
                                              set_params_town)],
-            SET_PARAMS_FOOL: [MessageHandler(Filters.text & ~Filters.command,
-                                             set_params_fool)],
-            SET_PARAMS_CONFIRM: [MessageHandler(Filters.regex('^y'),
-                                                register_players_start),
-                                 MessageHandler(Filters.regex('^n'),
-                                                set_params_start)]
+            FOOL_WORD: [MessageHandler(Filters.text & ~Filters.command,
+                                             set_params_fool)]
         },
 
-        fallbacks=[CommandHandler('cancel', set_params_cancel, Filters.private),
-                   CommandHandler('restart', set_params_start,
-                                  Filters.private)]
+        fallbacks=[CommandHandler('cancel', set_params_cancel, Filters.private)]
+                #    CommandHandler('restart', set_params_start,
+                #                   Filters.private)]
     )
+
     dp.add_handler(set_params_handler)
 
     updater.start_polling()
@@ -170,6 +162,6 @@ if __name__ == '__main__':
     api_token = read_bot_api_token()
     updater = Updater(api_token, use_context=True)
     bot = telegram.Bot(token=api_token)
-    game_engine = GhostEngine()
+    ge = ghost.GhostEngine()
     main()
 
