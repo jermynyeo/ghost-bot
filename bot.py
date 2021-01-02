@@ -45,7 +45,7 @@ def create(update, context):
     # host_id = get_user_id(update)
     gid = get_gid(update)
 
-    update.message.reply_text('Welcome to the Ghost game bot!\n'
+    bot.send_message(chat_id = gid, text = 'Welcome to the Ghost game bot!\n'
                             + '/rules to read game rules\n\n'
                             + 'Creating new game of ghost!\n')
                             # + 'Players type /join to join the game\n')
@@ -63,12 +63,17 @@ def register_player (update, context):
     gid = query.message.chat.id
 
     query.answer()
-    query.edit_message_text(text=f"@{username} has been registered")
     ge.register_player(gid, username)
-    num_players = ge.get_num_players(gid)
+    players = ge.get_existing_players(gid)
+    num_players = len(players)
+    player_list_text = ''
+    for i in players:
+        player_list_text += '@'
+        player_list_text += i
+        player_list_text += '\n'
     if (num_players < 10 ):
         reply_markup = InlineKeyboardMarkup(build_menu([InlineKeyboardButton('Join', callback_data= str(JOIN) )], 1))
-        bot.send_message(chat_id = gid, text=f"Current Number of Players: \n {num_players}", reply_markup=reply_markup)
+        bot.send_message(chat_id = gid, text=f"Current Number of Players: {num_players} \n{player_list_text}", reply_markup=reply_markup)
 
 ############################## Start the game, host will input the parameters ##############################
 def start(update, context):
