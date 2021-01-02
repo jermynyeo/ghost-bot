@@ -11,7 +11,7 @@ logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %('
 
 logger = logging.getLogger(__name__)
 
-PLAYER, FOOL_WORD, TOWN_WORD = range(3)
+JOIN, FOOL_WORD, TOWN_WORD = range(3)
 
 def get_gid(update):
     return update.message.chat.id
@@ -33,17 +33,6 @@ def build_menu(buttons,
         menu.append([footer_buttons])
     return menu
 
-def register_player (update, context):
-    query = update.callback_query
-    query.answer()
-    query.edit_message_text(text=f"Selected option: {query.data}")
-    username = (query.from_user.username)
-    gid = query.message.chat.id
-    ge.register_player(gid, username)
-    reply_markup = InlineKeyboardMarkup(build_menu([InlineKeyboardButton('Join', callback_data='join')], 1))
-    bot.send_message(chat_id = gid, text= "Click to join game", reply_markup=reply_markup)
-    return PLAYER
-
 ############################## Get the rules of the game ##############################
 def rules(update, context):
     user_id = get_user_id(update)
@@ -62,10 +51,24 @@ def create(update, context):
                             # + 'Players type /join to join the game\n')
                             
     ge.add_game(gid, host)
-    reply_markup = InlineKeyboardMarkup(build_menu([InlineKeyboardButton('Join', callback_data='join')], 1))
+    
+    reply_markup = InlineKeyboardMarkup(build_menu([InlineKeyboardButton('Join', callback_data= str(JOIN) )], 1))
     bot.send_message(chat_id = gid, text= "Click to join game", reply_markup=reply_markup)
 
 ############################## Register Player ##############################
+def register_player (update, context):
+    query = update.callback_query
+
+    username = query.from_user.username
+    gid = query.message.chat.id
+
+    query.answer()
+    query.edit_message_text(text=f"@{username} has been registered")
+    ge.register_player(gid, username)
+    num_players = ge.get_num_players(gid)
+    if (num_players < 10 ):
+        reply_markup = InlineKeyboardMarkup(build_menu([InlineKeyboardButton('Join', callback_data= str(JOIN) )], 1))
+        bot.send_message(chat_id = gid, text=f"Current Number of Players: \n {num_players}", reply_markup=reply_markup)
 
 ############################## Start the game, host will input the parameters ##############################
 def start(update, context):
@@ -113,18 +116,8 @@ def main():
 
     # setup
     dp.add_handler(CommandHandler('create', create, Filters.group))
-    register_player_handler = ConversationHandler(
-        entry_points=[CommandHandler('create', create, Filters.group)],
-        states = {
-            PLAYER: [
-                CallbackQueryHandler(register_player)
-            ]
-        },
-        fallbacks=[MessageHandler(Filters.regex('^Done$'), set_params_cancel)],
-        name="new_player"
-    )
-    dp.add_handler(register_player_handler)
-        # dp.add_handler(CallbackQueryHandler(register_player))
+    dp.add_handler(CallbackQueryHandler(register_player, pattern='^'+ str(JOIN) +'$'))
+
 
     #misc 
     dp.add_handler(CommandHandler('rules', rules))
