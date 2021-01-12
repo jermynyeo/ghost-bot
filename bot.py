@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 d = enchant.Dict("en_US")
 
 # Initialization params
-FOOL_WORD, TOWN_WORD, ADD_CLUE, JOIN = range(4)
+JOIN, FOOL_WORD, TOWN_WORD, ADD_CLUE, NEXT_PLAYER  = range(5)
 
 def get_gid(update):
     return update.message.chat.id
@@ -40,7 +40,7 @@ def build_menu(buttons,
 ############################## Get the rules of the game ##############################
 def rules(update, context):
     user_id = get_user_id(update)
-    rule_message = '<b>RULES</b>\n\nTownies are Fools are playing against the eponymous Ghosts.\nTownies will get Town Word, Fools will get Fool Word.\nGhosts do not get a word.\n\n\n<b>Objective</b>\nTownies and Fools: eliminate ALL Ghosts.\nGhosts: guess the Town Word or gain the majority.\n\n\n<b>Gameplay</b> \nWord Round: everyone giving a (subtle) clue about their word.\nGhosts have to blend in with everyone else.\nVoting Round, everyone picks someone to eliminate.\nIf a Ghost is eliminated, they can make a guess.\n'
+    rule_message = '<b>RULES</b>\n\n3-10 Players\n\nTownies are Fools are playing against the eponymous Ghosts.\nTownies will get Town Word, Fools will get Fool Word.\nGhosts do not get a word.\n\n\n<b>Objective</b>\nTownies and Fools: eliminate ALL Ghosts.\nGhosts: guess the Town Word or gain the majority.\n\n\n<b>Gameplay</b> \nWord Round: everyone giving a (subtle) clue about their word. Please use this format: <i>/clue my_clue.<i>\n<i>eg. word: sky /clue blue</i>\nGhosts have to blend in with everyone else.\nVoting Round, everyone picks someone to eliminate.\nIf a Ghost is eliminated, they can make a guess.\n'
     bot.send_message(chat_id=user_id, text=rule_message, parse_mode='HTML')
 
 #########################
@@ -65,8 +65,7 @@ def create(update, context):
     ge.add_game(gid, host)
     
     reply_markup = InlineKeyboardMarkup(build_menu([InlineKeyboardButton('Join', callback_data= str(JOIN) )], 1))
-    msg = bot.send_message(chat_id = gid, text= "Click to join game", reply_markup=reply_markup)
-    print (msg)
+    bot.send_message(chat_id = gid, text= "Click to join game", reply_markup=reply_markup)
 
 ############################## Register Player ##############################
 def register_player (update, context):
@@ -132,7 +131,9 @@ def set_params_fool(update, context):
     
     if (ge.set_param_fool_word(host, fool_word)):
         bot.send_message(chat_id = user_id, text = 'Fool word: %s\n' % fool_word)
-        bot.send_message(chat_id = gid, text ='Words have been initalized. The game will start.\n')
+        order = ge.get_player_order(gid)
+        bot.send_message(chat_id = gid, text ='Words have been initalized. The game starts now. ')
+        bot.send_message(chat_id = gid, text = f"This is the order to give clues: {order}\n\nRead /rules to understand how to submit clues. \n\n@{order[0]} please give your clue.")
         roles = ge.get_player_roles(gid)
         words = ge.get_words(gid)
         for p in roles.items(): 
@@ -140,26 +141,40 @@ def set_params_fool(update, context):
                 bot.send_message(chat_id = player_to_id_map[p[0]], text ='You the ghost')
             elif (ghost.Roles.TOWN == p[1]):
                 bot.send_message(chat_id = player_to_id_map[p[0]], text =f'Word: {words[0]}')
-        return ADD_CLUE
+        return ConversationHandler.END
     else: 
         update.message.reply_text(f'{fool_word} is not a valid english word or the length of fool word is different from town word. Please re-enter a word.') 
         update.message.reply_text(f'Suggestions: {d.suggest(fool_word)}')
         return FOOL_WORD
 
-
 #########################
 ## PLAYING UP THE GAME ##
 #########################
-
-############################## Get Clues from User ##############################
-def get_clue(update, context):
-    print ( 'im here')
+def get_clue(update,context):
     gid = get_gid(update)
-    print (gid)
-    bot.send_message(chat_id = gid, text ='BITCH SEND ME THE CLUE\n')
+    username = get_username(update)
     clue = update.message.text
-    print (clue)
-    return ConversationHandler.END
+    print ((clue.split('/clue')[1]))
+    ge.set_clue(gid, username, clue)
+    print (ge.get_all_clues(gid))
+    player = ge.get_next_in_player_order(gid)
+    bot.send_message(chat_id = gid, text = f"@{player} please give your clue.")
+
+##################
+## VOTING PHASE ##
+##################
+def vote(update, context):
+    # get the players from api call 
+    gid = get_gid(update)
+    players = ge.get_existing_players(gid)
+    print (players)
+    # players = ['r','d','s','a','o'] 
+    button_list = []
+    for each in players:
+        button_list.append(InlineKeyboardButton(each, callback_data = each))
+    reply_markup=InlineKeyboardMarkup(build_menu(button_list,n_cols=1)) #n_cols = 1 is for single column and mutliple rows
+    bot.send_message(chat_id=update.message.chat_id, text='Choose from the following',reply_markup=reply_markup)
+
 
 ############################
 ## RESET/ DELETE THE GAME ##
@@ -177,9 +192,10 @@ def main():
 
     # setup
     dp.add_handler(CommandHandler('create', create, Filters.group))
+    dp.add_handler(CommandHandler('vote', vote))
     dp.add_handler(CallbackQueryHandler(register_player, pattern='^'+ str(JOIN) +'$'))
 
-    #misc 
+    #misc   
     dp.add_handler(CommandHandler('rules', rules))
 
     # set parameters 
@@ -189,15 +205,13 @@ def main():
             TOWN_WORD: [MessageHandler(Filters.text & ~Filters.command,
                                              set_params_town)],
             FOOL_WORD: [MessageHandler(Filters.text & ~Filters.command,
-                                             set_params_fool)],
-            ADD_CLUE: [MessageHandler(Filters.text & ~Filters.command,
-                                             get_clue)]
+                                             set_params_fool)]  
         },
 
         fallbacks=[CommandHandler('cancel', set_params_cancel, Filters.private)]
     )
-
     dp.add_handler(set_params_handler)
+    dp.add_handler(CommandHandler('clue', get_clue, Filters.group))
 
     updater.start_polling()
     updater.idle()
